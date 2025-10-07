@@ -2,15 +2,30 @@ import subprocess
 import sys
 import ctypes
 
+
+def admin_check():
+    if sys.platform != "win32":
+        return False
+
+    try:
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            return True
+    except Exception:
+        return False
+
+    # Request admin privileges
+    ret = ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+    if int(ret) <= 32:
+        print("Administrative privileges were denied or could not be obtained")
+    sys.exit()
+
+
 def kill_audio_service():
     try:
-        if sys.platform != "win32":
+        if not admin_check():
             return
-        
-        if not ctypes.windll.shell32.IsUserAnAdmin():
-            print("This script requires administrative privileges, Please run as administrator.")
-            sys.exit(1)
-            
+
         result = subprocess.run(
             ["sc", "queryex", "audiosrv"], capture_output=True, text=True)
 
@@ -48,9 +63,9 @@ def kill_audio_service():
             print("Successfully restarted the Windows Audio service")
         else:
             print("Failed to restart the Windows Audio service")
-
     except Exception as e:
         print(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     kill_audio_service()
